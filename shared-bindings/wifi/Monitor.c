@@ -35,7 +35,7 @@ static mp_obj_t wifi_monitor_make_new(const mp_obj_type_t *type, size_t n_args, 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, all_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
-    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 13, MP_QSTR_channel);
+    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 165, MP_QSTR_channel);
     mp_int_t queue = mp_arg_validate_int_min(args[ARG_queue].u_int, 0, MP_QSTR_queue);
 
     wifi_monitor_obj_t *self = MP_STATE_VM(wifi_monitor_singleton);
