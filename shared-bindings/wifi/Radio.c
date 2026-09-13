@@ -403,7 +403,7 @@ static mp_obj_t wifi_radio_start_ap(size_t n_args, const mp_obj_t *pos_args, mp_
         }
     }
 
-    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 13, MP_QSTR_channel);
+    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 165, MP_QSTR_channel);
 
     if (authmode == AUTHMODE_OPEN && password.len > 0) {
         mp_raise_ValueError(MP_ERROR_TEXT("AuthMode.OPEN is not used with password"));
