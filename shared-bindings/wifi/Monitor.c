@@ -35,7 +35,7 @@ static mp_obj_t wifi_monitor_make_new(const mp_obj_type_t *type, size_t n_args, 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, all_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
-    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 44, MP_QSTR_channel);
+    mp_int_t channel = mp_arg_validate_int_range(args[ARG_channel].u_int, 1, 165, MP_QSTR_channel);
     mp_int_t queue = mp_arg_validate_int_min(args[ARG_queue].u_int, 0, MP_QSTR_queue);
 
     wifi_monitor_obj_t *self = MP_STATE_VM(wifi_monitor_singleton);
@@ -57,7 +57,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(wifi_monitor_get_channel_obj, wifi_monitor_obj_get_cha
 
 static mp_obj_t wifi_monitor_obj_set_channel(mp_obj_t self_in, mp_obj_t channel) {
     mp_int_t c = mp_obj_get_int(channel);
-    if (c < 1 || c > 44) {
+    if (c < 1 || c > 165) {
         mp_raise_ValueError_varg(MP_ERROR_TEXT("%q out of bounds"), MP_QSTR_channel);
     }
     common_hal_wifi_monitor_set_channel(self_in, c);
