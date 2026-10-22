@@ -29,6 +29,11 @@ static const char *TAG = "monitor";
 
 static void wifi_monitor_cb(void *recv_buf, wifi_promiscuous_pkt_type_t type) {
     wifi_promiscuous_pkt_t *pkt = (wifi_promiscuous_pkt_t *)recv_buf;
+    wifi_monitor_obj_t *self = MP_STATE_VM(wifi_monitor_singleton);
+
+    if (self == NULL || !self->active || self->queue == NULL) {
+        return;
+    }
 
     // prepare packet
     monitor_packet_t packet = {
@@ -43,9 +48,7 @@ static void wifi_monitor_cb(void *recv_buf, wifi_promiscuous_pkt_type_t type) {
         packet.payload = malloc(packet.length);
         if (packet.payload) {
             memcpy(packet.payload, pkt->payload, packet.length);
-            wifi_monitor_obj_t *self = MP_STATE_VM(wifi_monitor_singleton);
             if (self->queue) {
-                // send packet
                 if (xQueueSendFromISR(self->queue, &packet, NULL) != pdTRUE) {
                     self->lost++;
                     free(packet.payload);
@@ -75,9 +78,7 @@ static uint8_t set_channel(uint8_t channel) {
 void common_hal_wifi_monitor_construct(wifi_monitor_obj_t *self, uint8_t channel, size_t queue) {
     mp_rom_error_text_t monitor_mode_init_error = MP_ERROR_TEXT("monitor init failed");
 
-    // Before anything needs undoing on failure.
-    channel = set_channel(channel);
-
+    self->active = true;
     self->queue = xQueueCreate(queue, sizeof(monitor_packet_t));
     if (!self->queue) {
         mp_raise_RuntimeError(monitor_mode_init_error);
@@ -90,6 +91,9 @@ void common_hal_wifi_monitor_construct(wifi_monitor_obj_t *self, uint8_t channel
     esp_wifi_set_promiscuous_filter(&wifi_filter);
     esp_wifi_set_promiscuous_rx_cb(wifi_monitor_cb);
     if (esp_wifi_set_promiscuous(true) != ESP_OK) {
+        vQueueDelete(self->queue);
+        self->queue = NULL;
+        self->active = false;
         mp_raise_RuntimeError(monitor_mode_init_error);
     }
 
@@ -103,22 +107,28 @@ bool common_hal_wifi_monitor_deinited(void) {
 }
 
 void common_hal_wifi_monitor_deinit(wifi_monitor_obj_t *self) {
-    if (common_hal_wifi_monitor_deinited()) {
+    if (self == NULL || !self->active || common_hal_wifi_monitor_deinited()) {
         return;
     }
+
+    // Stop the ISR before tearing down the queue.
+    self->active = false;
+    esp_wifi_set_promiscuous_rx_cb(NULL);
 
     // disable wifi promiscuous mode
     esp_wifi_set_promiscuous(false);
 
-    // make sure to free all resources in the left items
-    UBaseType_t left_items = uxQueueMessagesWaiting(self->queue);
-    monitor_packet_t packet;
-    while (left_items--) {
-        xQueueReceive(self->queue, &packet, MONITOR_QUEUE_TIMEOUT_TICK);
-        free(packet.payload);
+    if (self->queue != NULL) {
+        UBaseType_t left_items = uxQueueMessagesWaiting(self->queue);
+        monitor_packet_t packet;
+        while (left_items--) {
+            if (xQueueReceive(self->queue, &packet, MONITOR_QUEUE_TIMEOUT_TICK) == pdTRUE) {
+                free(packet.payload);
+            }
+        }
+        vQueueDelete(self->queue);
+        self->queue = NULL;
     }
-    vQueueDelete(self->queue);
-    self->queue = NULL;
 }
 
 void common_hal_wifi_monitor_set_channel(wifi_monitor_obj_t *self, uint8_t channel) {
@@ -163,3 +173,4 @@ mp_obj_t common_hal_wifi_monitor_get_packet(wifi_monitor_obj_t *self) {
 
     return MP_OBJ_FROM_PTR(dict);
 }
+

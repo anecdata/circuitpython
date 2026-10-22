@@ -15,4 +15,6 @@ typedef struct {
     size_t lost;
     size_t queue_length;
     QueueHandle_t queue;
+    volatile bool active;
 } wifi_monitor_obj_t;
+
