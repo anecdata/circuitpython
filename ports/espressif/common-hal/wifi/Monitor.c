@@ -49,6 +49,7 @@ static void wifi_monitor_cb(void *recv_buf, wifi_promiscuous_pkt_type_t type) {
         if (packet.payload) {
             memcpy(packet.payload, pkt->payload, packet.length);
             if (self->queue) {
+                // send packet
                 if (xQueueSendFromISR(self->queue, &packet, NULL) != pdTRUE) {
                     self->lost++;
                     free(packet.payload);
@@ -78,6 +79,9 @@ static uint8_t set_channel(uint8_t channel) {
 void common_hal_wifi_monitor_construct(wifi_monitor_obj_t *self, uint8_t channel, size_t queue) {
     mp_rom_error_text_t monitor_mode_init_error = MP_ERROR_TEXT("monitor init failed");
 
+    // Before anything needs undoing on failure.
+    self->channel = set_channel(channel);
+
     self->active = true;
     self->queue = xQueueCreate(queue, sizeof(monitor_packet_t));
     if (!self->queue) {
@@ -97,7 +101,6 @@ void common_hal_wifi_monitor_construct(wifi_monitor_obj_t *self, uint8_t channel
         mp_raise_RuntimeError(monitor_mode_init_error);
     }
 
-    self->channel = channel;
     self->queue_length = queue;
 }
 
